@@ -8,6 +8,7 @@ zrun 是一个简单的跨平台脚本语言，可以根据不同的操作系统
 - 根据操作系统执行对应的命令块
 - 支持默认命令块 (`@default`)
 - 支持Unix通用平台 (`@unix` 适用于Linux和macOS)
+- 支持命令回显控制 (`@echo on`/`@echo off`)
 
 ## 安装
 
@@ -24,6 +25,8 @@ go build -o zrun main.go
 创建一个 `.zr` 扩展名的脚本文件：
 
 ```zr
+@echo off
+
 @windows {
     echo "Hello Windows!"
     dir
@@ -65,15 +68,14 @@ go build -o zrun main.go
    - `@unix` - Unix类系统 (包括Linux和macOS)
    - `@default` - 默认块，当没有其他块匹配时执行
 3. 在大括号内编写需要执行的系统命令，每行一个命令
+4. 使用 `@echo off` 禁止显示将要执行的命令（默认是on，即显示命令）
+5. 使用 `@echo on` 可以重新开启命令回显
+6. `@echo` 指令在整个脚本中全局生效，会影响其后所有命令的回显状态
 
 ## 工作原理
 
 zrun 解释器会：
 1. 解析 `.zr` 脚本文件
 2. 检测当前运行的操作系统
-3. 执行第一个匹配的操作系统命令块
+3. 按顺序执行所有匹配当前操作系统的命令块
 4. 如果没有匹配的块，则尝试执行 `@default` 块
-
-## 示例
-
-查看 `example.zr` 和 `advanced_example.zr` 文件获取更多使用示例。

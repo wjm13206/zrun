@@ -9,15 +9,17 @@ import (
 	"strings"
 )
 
-// PlatformBlock 表示一个平台特定的代码块
-type PlatformBlock struct {
-	Platform string
-	Commands []string
+// ScriptCommand 表示脚本中的一个命令
+type ScriptCommand struct {
+	Command string
+	Type    string // "echo" 或 "platform"
+	Param   string // platform名称或其他参数
 }
 
 // ZRunScript 表示整个zrun脚本
 type ZRunScript struct {
-	Blocks []PlatformBlock
+	Commands []ScriptCommand
+	EchoOn   bool // 控制是否显示命令
 }
 
 func main() {
@@ -48,12 +50,14 @@ func parseScript(filename string) (*ZRunScript, error) {
 	}
 	defer file.Close()
 
+	// 默认开启echo
 	script := &ZRunScript{
-		Blocks: make([]PlatformBlock, 0),
+		Commands: make([]ScriptCommand, 0),
+		EchoOn:   true,
 	}
 
 	scanner := bufio.NewScanner(file)
-	var currentBlock *PlatformBlock
+	var currentPlatform string
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -63,30 +67,44 @@ func parseScript(filename string) (*ZRunScript, error) {
 			continue
 		}
 
+		// 检查@echo指令
+		if strings.HasPrefix(line, "@echo ") {
+			echoParam := strings.TrimSpace(strings.TrimPrefix(line, "@echo"))
+			if echoParam == "off" {
+				script.EchoOn = false
+			} else if echoParam == "on" {
+				script.EchoOn = true
+			}
+			// 添加到命令列表中，以便在执行时处理
+			script.Commands = append(script.Commands, ScriptCommand{
+				Command: line,
+				Type:    "echo",
+				Param:   echoParam,
+			})
+			continue
+		}
+
 		// 检查是否是平台块开始
 		if strings.HasPrefix(line, "@") && strings.HasSuffix(line, "{") {
 			platform := strings.TrimPrefix(line, "@")
 			platform = strings.TrimSuffix(platform, " {")
-			
-			block := PlatformBlock{
-				Platform: platform,
-				Commands: make([]string, 0),
-			}
-			
-			currentBlock = &block
+			currentPlatform = platform
 			continue
 		}
 
 		// 检查是否是块结束
-		if line == "}" && currentBlock != nil {
-			script.Blocks = append(script.Blocks, *currentBlock)
-			currentBlock = nil
+		if line == "}" {
+			currentPlatform = ""
 			continue
 		}
 
-		// 添加命令到当前块
-		if currentBlock != nil {
-			currentBlock.Commands = append(currentBlock.Commands, line)
+		// 添加命令到当前平台块
+		if currentPlatform != "" {
+			script.Commands = append(script.Commands, ScriptCommand{
+				Command: line,
+				Type:    "platform",
+				Param:   currentPlatform,
+			})
 		}
 	}
 
@@ -100,28 +118,27 @@ func parseScript(filename string) (*ZRunScript, error) {
 // executeScript 执行解析后的脚本
 func executeScript(script *ZRunScript) error {
 	currentOS := getOS()
-	var defaultBlock *PlatformBlock
 	
-	// 首先查找匹配当前平台的块
-	for _, block := range script.Blocks {
-		if block.Platform == "default" {
-			defaultBlock = &block
+	for _, cmd := range script.Commands {
+		// 处理echo指令
+		if cmd.Type == "echo" {
+			if cmd.Param == "off" {
+				script.EchoOn = false
+			} else if cmd.Param == "on" {
+				script.EchoOn = true
+			}
 			continue
 		}
 		
-		if matchPlatform(block.Platform, currentOS) {
-			fmt.Printf("# 执行 %s 平台命令:\n", block.Platform)
-			return executeCommands(block.Commands)
+		// 处理平台命令
+		if cmd.Type == "platform" && matchPlatform(cmd.Param, currentOS) {
+			err := executeCommand(cmd.Command, script.EchoOn)
+			if err != nil {
+				return fmt.Errorf("执行命令 '%s' 失败: %v", cmd.Command, err)
+			}
 		}
 	}
 	
-	// 如果没有找到匹配的平台块，尝试执行默认块
-	if defaultBlock != nil {
-		fmt.Printf("# 执行默认命令块:\n")
-		return executeCommands(defaultBlock.Commands)
-	}
-	
-	fmt.Println("未找到适用于当前平台的命令块")
 	return nil
 }
 
@@ -141,6 +158,11 @@ func getOS() string {
 
 // matchPlatform 检查平台是否匹配
 func matchPlatform(platform, currentOS string) bool {
+	// default块总是匹配
+	if platform == "default" {
+		return true
+	}
+	
 	// 支持多个平台名称
 	platforms := strings.Split(platform, ",")
 	for _, p := range platforms {
@@ -157,19 +179,8 @@ func matchPlatform(platform, currentOS string) bool {
 	return false
 }
 
-// executeCommands 执行命令列表
-func executeCommands(commands []string) error {
-	for _, command := range commands {
-		err := executeCommand(command)
-		if err != nil {
-			return fmt.Errorf("执行命令 '%s' 失败: %v", command, err)
-		}
-	}
-	return nil
-}
-
 // executeCommand 执行单个系统命令
-func executeCommand(command string) error {
+func executeCommand(command string, echoOn bool) error {
 	var cmd *exec.Cmd
 	
 	if runtime.GOOS == "windows" {
@@ -182,7 +193,9 @@ func executeCommand(command string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	
-	// 执行命令
-	fmt.Printf("$ %s\n", command)
+	// 根据echoOn参数决定是否显示命令
+	if echoOn {
+		fmt.Printf("$ %s\n", command)
+	}
 	return cmd.Run()
 }
