@@ -1,0 +1,14 @@
+@windows {
+    dir
+    echo Hello Windows!
+}
+
+@linux {
+    ls -la
+    echo "Hello Linux!"
+}
+
+@macos {
+    ls -lG
+    echo "Hello macOS!"
+}
