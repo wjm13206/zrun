@@ -7,7 +7,7 @@ import (
 	"zrun/internal/types"
 )
 
-// ParseScript 解析 .zr 脚本文件
+// 解析
 // 参数:
 //   - filename: 要解析的脚本文件名
 //
@@ -100,9 +100,10 @@ func processLine(line string, script *types.ZRunScript, currentPlatform *string)
 //   - error: 处理过程中可能发生的错误
 func processEchoCommand(line string, script *types.ZRunScript) error {
 	echoParam := strings.TrimSpace(strings.TrimPrefix(line, "@echo"))
-	if echoParam == "off" {
+	switch echoParam {
+	case "off":
 		script.EchoOn = false
-	} else if echoParam == "on" {
+	case "on":
 		script.EchoOn = true
 	}
 
