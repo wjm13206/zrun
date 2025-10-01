@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"zrun/internal/types"
-	"zrun/internal/utils"
+	"zrun/app/types"
+	"zrun/app/utils"
 )
 
 func ExecuteScript(script *types.ZRunScript) error {

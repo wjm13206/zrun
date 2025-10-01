@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"zrun/internal/executor"
-	"zrun/internal/parser"
+	"zrun/app/executor"
+	"zrun/app/parser"
 )
 
 // 解析命令行参数，加载并解析脚本文件，
