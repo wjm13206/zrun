@@ -1,0 +1,25 @@
+@echo off
+
+@windows {
+    echo "Hello Windows!"
+    dir
+}
+
+@linux {
+    echo "Hello Linux!"
+    ls -la
+}
+
+@macos {
+    echo "Hello macOS!"
+    ls -lG
+}
+
+@unix {
+    echo "Hello Unix!"
+    uname -a
+}
+
+@default {
+    echo "Hello!"
+}
