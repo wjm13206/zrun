@@ -7,7 +7,7 @@ import (
 )
 
 // GetOS 获取当前操作系统
-// 返回值: "windows", "linux", "macos" 或其他运行时操作系统标识
+// 返回值"windows", "linux", "macos"
 func GetOS() string {
 	switch runtime.GOOS {
 	case "windows":
@@ -17,24 +17,26 @@ func GetOS() string {
 	case "darwin":
 		return "macos"
 	default:
-		return runtime.GOOS
+		return runtime.GOOS // 默认
 	}
 }
 
-// MatchPlatform 检查平台是否匹配
+// 检查平台是否匹配
 // 参数:
 //   - platform: 脚本中声明的平台标识符
 //   - currentOS: 当前操作系统标识
 //
 // 返回值:
 //   - bool: 平台是否匹配
+
 func MatchPlatform(platform, currentOS string) bool {
-	// default块总是匹配
+	// default匹配
 	if platform == "default" {
 		return true
 	}
 
-	// 支持多个平台名称
+
+	
 	platforms := strings.Split(platform, ",")
 	for _, p := range platforms {
 		p = strings.TrimSpace(p)
@@ -42,7 +44,7 @@ func MatchPlatform(platform, currentOS string) bool {
 			return true
 		}
 
-		// 支持通用Unix平台
+		// Unix平台
 		if p == "unix" && (currentOS == "linux" || currentOS == "macos") {
 			return true
 		}

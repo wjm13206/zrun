@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"os"
 	"strings"
-	"zrun/app/types"
+	"zrun/src/types"
 )
 
 // 解析

@@ -5,9 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"zrun/app/types"
-	"zrun/app/utils"
+	"zrun/src/types"
+	"zrun/src/utils"
 )
+
+
+
 
 func ExecuteScript(script *types.ZRunScript) error {
 	currentOS := utils.GetOS()
@@ -22,6 +25,7 @@ func ExecuteScript(script *types.ZRunScript) error {
 
 	return nil
 }
+
 
 func processCommand(cmd types.ScriptCommand, script *types.ZRunScript, currentOS string) error {
 	// 处理echo指令
