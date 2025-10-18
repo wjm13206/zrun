@@ -1,0 +1,53 @@
+name: Release zrun
+
+on:
+  schedule:
+    # 每周五凌晨12点触发 (UTC时间)
+    - cron: '0 0 * * 5'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.5'
+
+      - name: Get version
+        id: get_version
+        run: |
+          # 如果是周六构建，则添加后缀
+          if [ $(date +\%u) -eq 6 ]; then
+            VERSION="v$(date +\%Y.\%m.\%d)-sat"
+          else
+            VERSION="v$(date +\%Y.\%m.\%d)"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build for all platforms
+        run: |
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 go build -o dist/zrun-windows-amd64.exe .
+          GOOS=linux GOARCH=amd64 go build -o dist/zrun-linux-amd64 .
+          GOOS=darwin GOARCH=amd64 go build -o dist/zrun-macos-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -o dist/zrun-macos-arm64 .
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/zrun-windows-amd64.exe
+            dist/zrun-linux-amd64
+            dist/zrun-macos-amd64
+            dist/zrun-macos-arm64
