@@ -7,13 +7,20 @@ import (
 	"zrun/src/parser"
 )
 
-// 解析命令行参数，加载并解析脚本文件，
-// 然后执行
+const version = "1.0"
+
+// 解析命令行参数，加载并解析脚本文件，然后执行
 func main() {
 	// 检查参数
 	if len(os.Args) < 2 {
 		fmt.Println("用法: ./zrun <文件.zr>")
 		os.Exit(1)
+	}
+
+	// 检查版本参数
+	if os.Args[1] == "-version" || os.Args[1] == "-v" {
+		fmt.Printf("zrun: %s\n", version)
+		os.Exit(0)
 	}
 
 	filename := os.Args[1]

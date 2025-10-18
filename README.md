@@ -2,6 +2,10 @@
 
 zrun 是一个简单的跨平台脚本语言。
 
+[![go](https://img.shields.io/badge/Go-1.24.5+-blue)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+
+
 ## 特性
 
 - 自动检测操作系统类型 (Windows/Linux/macOS)
@@ -57,7 +61,7 @@ go build -o zrun .
 }
 
 @unix {
-    echo "Hello Unix-like systems!"
+    echo "Hello Unix"
     uname -a
 }
 
