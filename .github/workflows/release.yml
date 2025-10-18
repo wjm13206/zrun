@@ -28,7 +28,7 @@ jobs:
         run: |
           # 如果是周六构建，则添加后缀
           if [ $(date +\%u) -eq 6 ]; then
-            VERSION="v$(date +\%Y.\%m.\%d)-sat"
+            VERSION="v$(date +\%Y.\%m.\%d)-Saturday Build"
           else
             VERSION="v$(date +\%Y.\%m.\%d)"
           fi
