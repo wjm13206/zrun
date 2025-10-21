@@ -6,19 +6,26 @@ import (
 	"strings"
 )
 
+var currentOS string
+
+func init() {
+	// 初始化操作系统类型
+	switch runtime.GOOS {
+	case "windows":
+		currentOS = "windows"
+	case "linux":
+		currentOS = "linux"
+	case "darwin":
+		currentOS = "macos"
+	default:
+		currentOS = runtime.GOOS
+	}
+}
+
 // GetOS 获取当前操作系统
 // 返回值"windows", "linux", "macos"
 func GetOS() string {
-	switch runtime.GOOS {
-	case "windows":
-		return "windows"
-	case "linux":
-		return "linux"
-	case "darwin":
-		return "macos"
-	default:
-		return runtime.GOOS // 默认
-	}
+	return currentOS
 }
 
 // 检查平台是否匹配
@@ -28,26 +35,50 @@ func GetOS() string {
 //
 // 返回值:
 //   - bool: 平台是否匹配
-
 func MatchPlatform(platform, currentOS string) bool {
-	// default匹配
+	// default匹配所有平台
 	if platform == "default" {
 		return true
 	}
 
 
+
+	if !strings.Contains(platform, ",") {
+		if platform == currentOS {
+			return true
+		}
+		
+
+
+		// Unix特殊处理
+		if platform == "unix" && (currentOS == "linux" || currentOS == "macos") {
+			return true
+		}
+		
+		return false
+	}
+
+
 	
+
+
 	platforms := strings.Split(platform, ",")
 	for _, p := range platforms {
+		// 去除空白字符
 		p = strings.TrimSpace(p)
 		if p == currentOS {
 			return true
 		}
 
+
+
+
+		
 		// Unix平台
 		if p == "unix" && (currentOS == "linux" || currentOS == "macos") {
 			return true
 		}
 	}
+	
 	return false
 }

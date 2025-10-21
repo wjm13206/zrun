@@ -3,11 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 	"zrun/src/executor"
 	"zrun/src/parser"
 )
 
 const version = "1.0"
+
+// 是否启用测量
+var enablePerfMeasurement = false
 
 // 解析命令行参数，加载并解析脚本文件，然后执行
 func main() {
@@ -25,6 +29,12 @@ func main() {
 
 	filename := os.Args[1]
 
+	// 记录开始时间
+	var start time.Time
+	if enablePerfMeasurement {
+		start = time.Now()
+	}
+
 	// 解析
 	script, err := parser.ParseScript(filename)
 	if err != nil {
@@ -37,5 +47,11 @@ func main() {
 	if err != nil {
 		fmt.Printf("执行错误: %v\n", err)
 		os.Exit(1)
+	}
+
+	// 输出执行时间
+	if enablePerfMeasurement {
+		elapsed := time.Since(start)
+		fmt.Printf("\n执行完成，总耗时: %v\n", elapsed)
 	}
 }

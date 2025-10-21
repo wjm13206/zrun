@@ -21,21 +21,72 @@ func ParseScript(filename string) (*types.ZRunScript, error) {
 	}
 	defer file.Close()
 
-	// 默认开启echo
+	// 预估命令数量以减少切片重新分配
 	script := &types.ZRunScript{
-		Commands: make([]types.ScriptCommand, 0),
+		Commands: make([]types.ScriptCommand, 0, 32), // 预分配容量
 		EchoOn:   true,
 	}
 
 	scanner := bufio.NewScanner(file)
-	var currentPlatform string
+	currentPlatform := "" // 使用值
+
+	// 复用字符串
+	echoPrefix := "@echo "
+	platformPrefix := "@"
+	blockSuffix := " {"
+	blockEnd := "}"
 
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		// 处理扫描到的每一行
-		err := processLine(line, script, &currentPlatform)
-		if err != nil {
-			return nil, err
+		line := scanner.Text() // 直接处理原始行
+		// 手动去除行首尾空格
+		start, end := 0, len(line)-1
+		for start <= end && (line[start] == ' ' || line[start] == '\t') {
+			start++
+		}
+		for end >= start && (line[end] == ' ' || line[end] == '\t') {
+			end--
+		}
+		if start > end {
+			continue // 空行
+		}
+		line = line[start : end+1]
+
+		// 跳过注释
+		if line[0] == '#' {
+			continue
+		}
+
+		// 检查@echo指令
+		if strings.HasPrefix(line, echoPrefix) {
+			echoParam := strings.TrimSpace(line[len(echoPrefix):])
+			// 添加到命令列表中
+			script.Commands = append(script.Commands, types.ScriptCommand{
+				Command: line,
+				Type:    "echo",
+				Param:   echoParam,
+			})
+			continue
+		}
+
+		// 检查是否是平台块开始
+		if strings.HasPrefix(line, platformPrefix) && strings.HasSuffix(line, blockSuffix) {
+			currentPlatform = line[1 : len(line)-2] // 去掉@和 {
+			continue
+		}
+
+		// 检查是否是块结束
+		if line == blockEnd {
+			currentPlatform = ""
+			continue
+		}
+
+		// 添加命令到当前平台块
+		if currentPlatform != "" {
+			script.Commands = append(script.Commands, types.ScriptCommand{
+				Command: line,
+				Type:    "platform",
+				Param:   currentPlatform,
+			})
 		}
 	}
 
@@ -44,75 +95,4 @@ func ParseScript(filename string) (*types.ZRunScript, error) {
 	}
 
 	return script, nil
-}
-
-// processLine 处理脚本中的一行
-// 参数:
-//   - line: 当前处理的行内容
-//   - script: 脚本结构体引用
-//   - currentPlatform: 当前平台块引用
-//
-// 返回值:
-//   - error: 处理过程中可能发生的错误
-func processLine(line string, script *types.ZRunScript, currentPlatform *string) error {
-	// 跳过空行和注释
-	if line == "" || strings.HasPrefix(line, "#") {
-		return nil
-	}
-
-	// 检查@echo指令
-	if strings.HasPrefix(line, "@echo ") {
-		return processEchoCommand(line, script)
-	}
-
-	// 检查是否是平台块开始
-	if strings.HasPrefix(line, "@") && strings.HasSuffix(line, "{") {
-		platform := strings.TrimPrefix(line, "@")
-		platform = strings.TrimSuffix(platform, " {")
-		*currentPlatform = platform
-		return nil
-	}
-
-	// 检查是否是块结束
-	if line == "}" {
-		*currentPlatform = ""
-		return nil
-	}
-
-	// 添加命令到当前平台块
-	if *currentPlatform != "" {
-		script.Commands = append(script.Commands, types.ScriptCommand{
-			Command: line,
-			Type:    "platform",
-			Param:   *currentPlatform,
-		})
-	}
-
-	return nil
-}
-
-// processEchoCommand 处理 @echo 指令
-// 参数:
-//   - line: 包含 @echo 指令的行
-//   - script: 脚本结构体引用
-//
-// 返回值:
-//   - error: 处理过程中可能发生的错误
-func processEchoCommand(line string, script *types.ZRunScript) error {
-	echoParam := strings.TrimSpace(strings.TrimPrefix(line, "@echo"))
-	switch echoParam {
-	case "off":
-		script.EchoOn = false
-	case "on":
-		script.EchoOn = true
-	}
-
-	// 添加到命令列表中，以便在执行时处理
-	script.Commands = append(script.Commands, types.ScriptCommand{
-		Command: line,
-		Type:    "echo",
-		Param:   echoParam,
-	})
-
-	return nil
 }
