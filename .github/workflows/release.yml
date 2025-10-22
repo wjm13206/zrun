@@ -23,16 +23,23 @@ jobs:
         with:
           go-version: '1.24.5'
 
-      - name: Get version
-        id: get_version
+      - name: Get current date
+        id: get_date
         run: |
           # 如果是周六构建，则添加后缀
           if [ $(date +\%u) -eq 6 ]; then
-            VERSION="v$(date +\%Y.\%m.\%d)-Saturday Build"
+            echo "VERSION=v$(date +\%Y.\%m.\%d)-Saturday Build" >> $GITHUB_ENV
+            echo "version=v$(date +\%Y.\%m.\%d)-Saturday Build" >> $GITHUB_OUTPUT
           else
-            VERSION="v$(date +\%Y.\%m.\%d)"
+            echo "VERSION=v$(date +\%Y.\%m.\%d)" >> $GITHUB_ENV
+            echo "version=v$(date +\%Y.\%m.\%d)" >> $GITHUB_OUTPUT
           fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Update version in main.go
+        run: |
+          VERSION_NUM=$(echo $VERSION | sed 's/^v//')
+          sed -i "s/const version = \".*\"/const version = \"$VERSION_NUM\"/" main.go
+          grep "const version" main.go
 
       - name: Build for all platforms
         run: |
@@ -45,8 +52,8 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
-          name: Release ${{ env.VERSION }}
+          tag_name: ${{ steps.get_date.outputs.version }}
+          name: Release ${{ steps.get_date.outputs.version }}
           draft: false
           prerelease: false
           files: |
