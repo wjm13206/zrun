@@ -6,9 +6,11 @@ import (
 	"time"
 	"zrun/src/executor"
 	"zrun/src/parser"
+	"zrun/src/utils"
 )
 
 const version = "1.0"
+const SyntaxVersion = "1.1"
 
 // 是否启用测量
 var enablePerfMeasurement = false
@@ -24,6 +26,12 @@ func main() {
 	// 检查版本参数
 	if os.Args[1] == "-version" || os.Args[1] == "-v" {
 		fmt.Printf("zrun: %s\n", version)
+		os.Exit(0)
+	}
+
+	// 检查语法版本更新参数
+	if os.Args[1] == "-u" || os.Args[1] == "--update" {
+		utils.CheckSyntaxUpdates(version, SyntaxVersion)
 		os.Exit(0)
 	}
 
