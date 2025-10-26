@@ -3,13 +3,6 @@ name: Release zrun
 on:
   # 仅允许手动触发
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version number'
-        required: true
-      syntax_version:
-        description: 'Syntax version number'
-        required: true
 
 jobs:
   release:
@@ -27,13 +20,28 @@ jobs:
         with:
           go-version: '1.24.5'
 
+      - name: Get version info
+        id: get_version
+        run: |
+          # 获取今天的日期作为版本号
+          DATE_VERSION=$(date +%Y.%m.%d)
+          echo "DATE_VERSION=$DATE_VERSION" >> $GITHUB_ENV
+          echo "date_version=$DATE_VERSION" >> $GITHUB_OUTPUT
+          
+          # 从 main.go 提取 SyntaxVersion
+          SYNTAX_VERSION=$(grep "const SyntaxVersion" main.go | cut -d '"' -f 2)
+          echo "SYNTAX_VERSION=$SYNTAX_VERSION" >> $GITHUB_ENV
+          echo "syntax_version=$SYNTAX_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Version: $DATE_VERSION, Syntax Version: $SYNTAX_VERSION"
+
       - name: Update versions in files
         run: |
           # 更新 main.go 中的版本
-          sed -i "s/const version = \".*\"/const version = \"${{ github.event.inputs.version }}\"/" main.go
+          sed -i "s/const version = \".*\"/const version = \"${{ env.DATE_VERSION }}\"/" main.go
           # 更新 version.json 中的版本
-          sed -i "s/\"version\": \".*\"/\"version\": \"${{ github.event.inputs.version }}\"/" version.json
-          sed -i "s/\"syntax_version\": \".*\"/\"syntax_version\": \"${{ github.event.inputs.syntax_version }}\"/" version.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"${{ env.DATE_VERSION }}\"/" version.json
+          sed -i "s/\"syntax_version\": \".*\"/\"syntax_version\": \"${{ env.SYNTAX_VERSION }}\"/" version.json
           
           # 显示更改
           echo "Updated main.go:"
@@ -46,7 +54,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add main.go version.json
-          git commit -m "Update to version ${{ github.event.inputs.version }} with syntax version ${{ github.event.inputs.syntax_version }}"
+          git commit -m "Update to version ${{ env.DATE_VERSION }} with syntax version ${{ env.SYNTAX_VERSION }}"
           git push
 
       - name: Build for all platforms
@@ -60,8 +68,8 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.event.inputs.version }}
-          name: Release v${{ github.event.inputs.version }}
+          tag_name: v${{ env.DATE_VERSION }}
+          name: Release v${{ env.DATE_VERSION }}
           draft: false
           prerelease: false
           files: |
