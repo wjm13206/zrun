@@ -9,7 +9,7 @@ import (
 	"zrun/src/utils"
 )
 
-const version = "1.0"
+const version = "2025.10.26"
 const SyntaxVersion = "1.1"
 
 // 是否启用测量
