@@ -24,8 +24,8 @@ func main() {
 	}
 
 	// 检查版本参数
-	if os.Args[1] == "-version" || os.Args[1] == "-v" {
-		fmt.Printf("zrun: %s\n", version)
+	if os.Args[1] == "-v" || os.Args[1] == "--version" {
+		fmt.Printf("zrun version: %s\n", version)
 		os.Exit(0)
 	}
 

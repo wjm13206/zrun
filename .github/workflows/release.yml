@@ -54,7 +54,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add main.go version.json
-          git commit -m "Update to version ${{ env.DATE_VERSION }} with syntax version ${{ env.SYNTAX_VERSION }}"
+          git commit -m "Update to version ${{ env.DATE_VERSION }}"
           git push
 
       - name: Build for all platforms
