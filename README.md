@@ -2,7 +2,7 @@
 
 zrun 是一个简单的跨平台脚本语言。
 
-[![go](https://img.shields.io/badge/Go-1.24.5+-blue)](https://go.dev/)
+[![go](https://img.shields.io/badge/Go-1.16+-blue)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 
@@ -22,7 +22,7 @@ zrun 是一个简单的跨平台脚本语言。
 
 ## 安装
 
-确保你已经安装了 Go 环境。
+确保你已经安装了 Go 环境，要求 Go 1.16+，但推荐使用 Go 1.21+ 以获得更好的兼容性和性能。
 
 ```bash
 # 克隆仓库
