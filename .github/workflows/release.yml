@@ -65,11 +65,48 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build -o dist/zrun-macos-amd64 .
           GOOS=darwin GOARCH=arm64 go build -o dist/zrun-macos-arm64 .
 
+      - name: Get commit history
+        id: commits
+        run: |
+          # 获取最近几次提交，包括贡献者信息和提交消息
+          COMMIT_LOG=$(git log --oneline -10 --pretty=format:"%h - %an: %s")
+          echo "COMMIT_LOG<<EOF" >> $GITHUB_ENV
+          echo "$COMMIT_LOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          # 获取最近的贡献者列表
+          CONTRIBUTORS=$(git log --oneline -10 --pretty=format:"%an" | sort -u | tr '\n' ',' | sed 's/,$//')
+          echo "CONTRIBUTORS=$CONTRIBUTORS" >> $GITHUB_ENV
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # 生成包含提交历史和贡献者的发布说明
+          RELEASE_NOTES="# 更新日志 🚀
+
+          ## 🛠️ 本次更新内容
+          \`\`\`log
+          ${{ env.COMMIT_LOG }}
+          \`\`\`
+
+          ## 👥 参与贡献
+          ${{ env.CONTRIBUTORS }}
+
+          ## 🔧 构建信息
+          - 语法版本: ${{ env.SYNTAX_VERSION }}
+          - 构建时间: $(date)
+          "
+
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          echo "$RELEASE_NOTES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.DATE_VERSION }}
           name: Release v${{ env.DATE_VERSION }}
+          body: ${{ env.RELEASE_NOTES }}
           draft: false
           prerelease: false
           files: |
