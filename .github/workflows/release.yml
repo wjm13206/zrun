@@ -71,18 +71,41 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build -o dist/zrun-macos-amd64 .
           GOOS=darwin GOARCH=arm64 go build -o dist/zrun-macos-arm64 .
 
+      - name: Get last release tag
+        id: last_release
+        run: |
+          # 获取上一个标签，如果没有则使用初始提交
+          LAST_TAG=$(git tag --sort=-v:refname | head -n 1)
+          if [ -z "$LAST_TAG" ]; then
+            # 如果没有标签，使用初始提交
+            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
+
       - name: Get commit history
         id: commits
         run: |
-          # 获取最近几次提交，包括贡献者信息和提交消息
-          COMMIT_LOG=$(git log --oneline -10 --pretty=format:"%h - %an: %s")
+          # 获取从上次发布以来的所有提交，排除合并和依赖更新
+          # 使用上一个标签作为起点
+          COMMIT_LOG=$(git log ${{ env.LAST_TAG }}..HEAD --oneline --pretty=format:"%h - %an: %s" | grep -v "Merge pull request" | grep -v "dependabot" | grep -v "Update to version")
+
+          # 如果没有找到符合条件的提交，使用最近的提交
+          if [ -z "$COMMIT_LOG" ]; then
+            COMMIT_LOG=$(git log --oneline -10 --pretty=format:"%h - %an: %s" | grep -v "Merge pull request" | grep -v "dependabot" | grep -v "Update to version")
+          fi
+
           echo "COMMIT_LOG<<EOF" >> $GITHUB_ENV
           echo "$COMMIT_LOG" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-          # 获取最近的贡献者列表
-          CONTRIBUTORS=$(git log --oneline -10 --pretty=format:"%an" | sort -u | tr '\n' ',' | sed 's/,$//')
-          echo "CONTRIBUTORS=$CONTRIBUTORS" >> $GITHUB_ENV
+          # 获取从上个标签以来的贡献者列表，排除机器人账号，以换行分隔
+          CONTRIBUTORS=$(git log ${{ env.LAST_TAG }}..HEAD --pretty=format:"%an" | grep -v "dependabot" | grep -v "github-actions" | sort -u | sed 's/^/- /' | tr '\n' '\n')
+          if [ -z "$(echo "$CONTRIBUTORS" | tr -d '\n')" ]; then
+            CONTRIBUTORS="- No human contributors since last release"
+          fi
+          echo "CONTRIBUTORS<<EOF" >> $GITHUB_ENV
+          echo "$CONTRIBUTORS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Generate release notes
         id: release_notes
@@ -101,6 +124,7 @@ jobs:
           ## 🔧 构建信息
           - 语法版本: ${{ env.SYNTAX_VERSION }}
           - 构建时间: $(date)
+          - 上次发布: ${{ env.LAST_TAG }}
           "
 
           echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
