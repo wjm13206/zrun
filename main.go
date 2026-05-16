@@ -10,7 +10,7 @@ import (
 )
 
 const version = "2026.05.16"
-const SyntaxVersion = "1.1"
+const SyntaxVersion = "1.2"
 
 // 是否启用测量
 var enablePerfMeasurement = false
