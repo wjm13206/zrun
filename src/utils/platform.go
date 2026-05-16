@@ -7,9 +7,9 @@ import (
 )
 
 var currentOS string
+var currentArch string
 
 func init() {
-	// 初始化操作系统类型
 	switch runtime.GOOS {
 	case "windows":
 		currentOS = "windows"
@@ -20,65 +20,63 @@ func init() {
 	default:
 		currentOS = runtime.GOOS
 	}
+
+	switch runtime.GOARCH {
+	case "amd64":
+		currentArch = "64"
+	case "386", "arm":
+		currentArch = "32"
+	case "arm64":
+		currentArch = "arm64"
+	default:
+		currentArch = runtime.GOARCH
+	}
 }
 
-// GetOS 获取当前操作系统
-// 返回值"windows", "linux", "macos"
 func GetOS() string {
 	return currentOS
 }
 
-// 检查平台是否匹配
-// 参数:
-//   - platform: 脚本中声明的平台标识符
-//   - currentOS: 当前操作系统标识
-//
-// 返回值:
-//   - bool: 平台是否匹配
-func MatchPlatform(platform, currentOS string) bool {
-	// default匹配所有平台
+func GetArch() string {
+	return currentArch
+}
+
+func MatchPlatform(platform string) bool {
 	if platform == "default" {
 		return true
 	}
 
-
-
-	if !strings.Contains(platform, ",") {
-		if platform == currentOS {
-			return true
-		}
-		
-
-
-		// Unix特殊处理
-		if platform == "unix" && (currentOS == "linux" || currentOS == "macos") {
-			return true
-		}
-		
-		return false
-	}
-
-
-	
-
-
 	platforms := strings.Split(platform, ",")
 	for _, p := range platforms {
-		// 去除空白字符
 		p = strings.TrimSpace(p)
+
+		if strings.Contains(p, "/") {
+			parts := strings.Split(p, "/")
+			if len(parts) != 2 {
+				continue
+			}
+			osPart := parts[0]
+			archPart := parts[1]
+
+			osMatch := osPart == currentOS || (osPart == "unix" && (currentOS == "linux" || currentOS == "macos"))
+			archMatch := archPart == currentArch
+
+			if osMatch && archMatch {
+				return true
+			}
+			continue
+		}
+
 		if p == currentOS {
 			return true
 		}
-
-
-
-
-		
-		// Unix平台
 		if p == "unix" && (currentOS == "linux" || currentOS == "macos") {
 			return true
 		}
+		if p == currentArch {
+			return true
+		}
 	}
-	
+
 	return false
 }

@@ -23,3 +23,10 @@
 @default {
     echo "Hello!"
 }
+
+@windows/64 {
+    echo "Windows 64-bit"
+}
+@windows/32 {
+    echo "Windows 32-bit"
+}

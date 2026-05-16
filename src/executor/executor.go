@@ -10,21 +10,15 @@ import (
 )
 
 func ExecuteScript(script *types.ZRunScript) error {
-	currentOS := utils.GetOS()
-	
-	// 预分配命令切片，减少内存重新分配
 	matchingCommands := make([]types.ScriptCommand, 0, len(script.Commands))
-	
-	// 第一次遍历：筛选出需要执行的命令
+
 	for _, cmd := range script.Commands {
-		// 处理echo指令
 		if cmd.Type == "echo" {
 			matchingCommands = append(matchingCommands, cmd)
 			continue
 		}
-		
-		// 处理平台命令
-		if cmd.Type == "platform" && utils.MatchPlatform(cmd.Param, currentOS) {
+
+		if cmd.Type == "platform" && utils.MatchPlatform(cmd.Param) {
 			matchingCommands = append(matchingCommands, cmd)
 		}
 	}
