@@ -37,12 +37,14 @@ jobs:
 
       - name: Update versions in files
         run: |
+          DATE_VERSION=$DATE_VERSION
+          SYNTAX_VERSION=$SYNTAX_VERSION
           # 更新 main.go 中的版本
-          sed -i "s/const version = \".*\"/const version = \"${{ env.DATE_VERSION }}\"/" main.go
+          sed -i "s/const version = \".*\"/const version = \"$DATE_VERSION\"/" main.go
           # 更新 version.json 中的版本
-          sed -i "s/\"version\": \".*\"/\"version\": \"${{ env.DATE_VERSION }}\"/" version.json
-          sed -i "s/\"syntax_version\": \".*\"/\"syntax_version\": \"${{ env.SYNTAX_VERSION }}\"/" version.json
-          
+          sed -i "s/\"version\": \".*\"/\"version\": \"$DATE_VERSION\"/" version.json
+          sed -i "s/\"syntax_version\": \".*\"/\"syntax_version\": \"$SYNTAX_VERSION\"/" version.json
+
           # 显示更改
           echo "Updated main.go:"
           grep "const version" main.go
@@ -57,7 +59,7 @@ jobs:
 
           # 检查是否有更改，如果有则提交
           if [[ -n "$(git status --porcelain)" ]]; then
-            git commit -m "Update to version ${{ env.DATE_VERSION }}"
+            git commit -m "Update to version $DATE_VERSION"
             git push
           else
             echo "No changes to commit"
@@ -94,16 +96,17 @@ jobs:
       - name: Get commit history
         id: commits
         run: |
+          LAST_TAG=$LAST_TAG
           # 获取从上次发布以来的所有提交，排除合并和依赖更新
           # 如果是初始提交，则获取最近的10条提交
-          if [[ "${{ env.LAST_TAG }}" == "$(git rev-list --max-parents=0 HEAD)" ]]; then
-            COMMIT_LOG=$(git log --oneline -10 --pretty=format:"%h - %an: %s" | grep -v "Merge pull request" | grep -v "dependabot" | grep -v "Update to version")
+          if [[ "$LAST_TAG" == "$(git rev-list --max-parents=0 HEAD)" ]]; then
+            COMMIT_LOG=$(git log --oneline -10 --pretty=format:"%h - %an: %s" | grep -vE "Merge|dependabot|Update to version")
           else
-            COMMIT_LOG=$(git log ${{ env.LAST_TAG }}..HEAD --oneline --pretty=format:"%h - %an: %s" | grep -v "Merge pull request" | grep -v "dependabot" | grep -v "Update to version")
+            COMMIT_LOG=$(git log $LAST_TAG..HEAD --oneline --pretty=format:"%h - %an: %s" | grep -vE "Merge|dependabot|Update to version")
 
             # 如果没有找到符合条件的提交，使用最近的提交
             if [ -z "$COMMIT_LOG" ]; then
-              COMMIT_LOG=$(git log --oneline -10 --pretty=format:"%h - %an: %s" | grep -v "Merge pull request" | grep -v "dependabot" | grep -v "Update to version")
+              COMMIT_LOG=$(git log --oneline -10 --pretty=format:"%h - %an: %s" | grep -vE "Merge|dependabot|Update to version")
             fi
           fi
 
@@ -112,10 +115,10 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
           # 获取从上个标签以来的贡献者列表，排除机器人账号
-          if [[ "${{ env.LAST_TAG }}" == "$(git rev-list --max-parents=0 HEAD)" ]]; then
+          if [[ "$LAST_TAG" == "$(git rev-list --max-parents=0 HEAD)" ]]; then
             CONTRIBUTORS=$(git log --pretty=format:"%an" | grep -v "dependabot" | grep -v "github-actions" | sort -u | sed 's/^/- /' | tr '\n' '\n')
           else
-            CONTRIBUTORS=$(git log ${{ env.LAST_TAG }}..HEAD --pretty=format:"%an" | grep -v "dependabot" | grep -v "github-actions" | sort -u | sed 's/^/- /' | tr '\n' '\n')
+            CONTRIBUTORS=$(git log $LAST_TAG..HEAD --pretty=format:"%an" | grep -v "dependabot" | grep -v "github-actions" | sort -u | sed 's/^/- /' | tr '\n' '\n')
           fi
 
           if [ -z "$(echo "$CONTRIBUTORS" | tr -d '\n')" ]; then
@@ -150,7 +153,7 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.DATE_VERSION }}
           name: Release v${{ env.DATE_VERSION }}
