@@ -21,9 +21,21 @@ func ParseScript(filename string) (*types.ZRunScript, error) {
 	}
 	defer file.Close()
 
-	// 预估命令数量以减少切片重新分配
+	// 获取文件信息以估计大小
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	
+	// 根据文件大小预估行数，每行大约100字符
+	estimatedLines := int(stat.Size()) / 100
+	if estimatedLines < 32 {
+		estimatedLines = 32
+	}
+
+	// 预分配容量
 	script := &types.ZRunScript{
-		Commands: make([]types.ScriptCommand, 0, 32), // 预分配容量
+		Commands: make([]types.ScriptCommand, 0, estimatedLines),
 		EchoOn:   true,
 	}
 

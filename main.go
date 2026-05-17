@@ -13,7 +13,7 @@ const version = "2026.05.16"
 const SyntaxVersion = "1.2"
 
 // 是否启用测量
-var enablePerfMeasurement = false
+var enablePerfMeasurement = true
 
 // 解析命令行参数，加载并解析脚本文件，然后执行
 func main() {
@@ -50,8 +50,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 执行
-	err = executor.ExecuteScript(script)
+	// 并发执行
+	err = executor.ExecuteScriptConcurrent(script)
 	if err != nil {
 		fmt.Printf("执行错误: %v\n", err)
 		os.Exit(1)

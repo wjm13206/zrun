@@ -5,47 +5,56 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sync"
 	"zrun/src/types"
 	"zrun/src/utils"
 )
 
-func ExecuteScript(script *types.ZRunScript) error {
-	matchingCommands := make([]types.ScriptCommand, 0, len(script.Commands))
+// 并发执行多个命令的新函数
+func ExecuteScriptConcurrent(script *types.ZRunScript) error {
+	// 分离echo命令和普通命令，因为echo命令会影响全局状态
+	var echoCmds []types.ScriptCommand
+	var platformCmds []types.ScriptCommand
 
 	for _, cmd := range script.Commands {
 		if cmd.Type == "echo" {
-			matchingCommands = append(matchingCommands, cmd)
-			continue
+			echoCmds = append(echoCmds, cmd)
+		} else if cmd.Type == "platform" && utils.MatchPlatform(cmd.Param) {
+			platformCmds = append(platformCmds, cmd)
 		}
+	}
 
-		if cmd.Type == "platform" && utils.MatchPlatform(cmd.Param) {
-			matchingCommands = append(matchingCommands, cmd)
+	// 先执行echo命令
+	for _, cmd := range echoCmds {
+		switch cmd.Param {
+		case "off":
+			script.EchoOn = false
+		case "on":
+			script.EchoOn = true
 		}
 	}
-	
-	// 执行筛选后的命令
-	for _, cmd := range matchingCommands {
-		// 处理echo指令
-		if cmd.Type == "echo" {
-			switch cmd.Param {
-			case "off":
-				script.EchoOn = false
-			case "on":
-				script.EchoOn = true
+
+	// 并发执行命令
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(platformCmds))
+
+	for _, cmd := range platformCmds {
+		wg.Add(1)
+		go func(c types.ScriptCommand) {
+			defer wg.Done()
+			if err := ExecuteCommand(c.Command, script.EchoOn); err != nil {
+				errChan <- err
 			}
-			continue
-		}
-		
-		// 执行平台命令
-		if cmd.Type == "platform" {
-			err := ExecuteCommand(cmd.Command, script.EchoOn)
-			if err != nil {
-				return err
-			}
-		}
+		}(cmd)
 	}
-	
-	return nil
+
+	wg.Wait()
+	select {
+	case err := <-errChan:
+		return err
+	default:
+		return nil
+	}
 }
 
 func ExecuteCommand(command string, echoOn bool) error {

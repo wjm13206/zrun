@@ -9,6 +9,9 @@ import (
 var currentOS string
 var currentArch string
 
+// 平台匹配结果缓存
+var platformCache = make(map[string]bool)
+
 func init() {
 	switch runtime.GOOS {
 	case "windows":
@@ -42,6 +45,20 @@ func GetArch() string {
 }
 
 func MatchPlatform(platform string) bool {
+	// 检查缓存
+	if result, exists := platformCache[platform]; exists {
+		return result
+	}
+
+	result := matchPlatformInternal(platform)
+	
+	// 存入缓存
+	platformCache[platform] = result
+	
+	return result
+}
+
+func matchPlatformInternal(platform string) bool {
 	if platform == "default" {
 		return true
 	}
