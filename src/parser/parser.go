@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 	"zrun/src/types"
@@ -99,6 +100,8 @@ func ParseScript(filename string) (*types.ZRunScript, error) {
 				Type:    "platform",
 				Param:   currentPlatform,
 			})
+		} else {
+			return nil, fmt.Errorf("命令不在任何平台块内: %s", line)
 		}
 	}
 

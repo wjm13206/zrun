@@ -4,6 +4,7 @@ package utils
 import (
 	"runtime"
 	"strings"
+	"sync"
 )
 
 var currentOS string
@@ -11,6 +12,7 @@ var currentArch string
 
 // 平台匹配结果缓存
 var platformCache = make(map[string]bool)
+var platformCacheMu sync.RWMutex
 
 func init() {
 	switch runtime.GOOS {
@@ -46,14 +48,19 @@ func GetArch() string {
 
 func MatchPlatform(platform string) bool {
 	// 检查缓存
+	platformCacheMu.RLock()
 	if result, exists := platformCache[platform]; exists {
+		platformCacheMu.RUnlock()
 		return result
 	}
+	platformCacheMu.RUnlock()
 
 	result := matchPlatformInternal(platform)
 	
 	// 存入缓存
+	platformCacheMu.Lock()
 	platformCache[platform] = result
+	platformCacheMu.Unlock()
 	
 	return result
 }

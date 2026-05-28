@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -37,27 +38,32 @@ func ExecuteScriptConcurrent(script *types.ZRunScript) error {
 	// 并发执行命令
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(platformCmds))
+	var outputMu sync.Mutex
 
 	for _, cmd := range platformCmds {
 		wg.Add(1)
 		go func(c types.ScriptCommand) {
 			defer wg.Done()
-			if err := ExecuteCommand(c.Command, script.EchoOn); err != nil {
+			if err := ExecuteCommand(c.Command, script.EchoOn, &outputMu); err != nil {
 				errChan <- err
 			}
 		}(cmd)
 	}
 
 	wg.Wait()
-	select {
-	case err := <-errChan:
-		return err
-	default:
-		return nil
+	close(errChan)
+
+	var errs []error
+	for err := range errChan {
+		errs = append(errs, err)
 	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
 }
 
-func ExecuteCommand(command string, echoOn bool) error {
+func ExecuteCommand(command string, echoOn bool, mu *sync.Mutex) error {
 	var cmd *exec.Cmd
 
 	// 根据操作系统选择shell执行命令
@@ -72,7 +78,9 @@ func ExecuteCommand(command string, echoOn bool) error {
 
 	// 根据echoOn决定是否显示命令
 	if echoOn {
+		mu.Lock()
 		fmt.Printf("$ %s\n", command)
+		mu.Unlock()
 	}
 
 	// 执行
