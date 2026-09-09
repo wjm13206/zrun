@@ -1,32 +1,22 @@
-@echo off
+@syntax 2.0
+@echo on
 
-@windows {
-    echo "Hello Windows!"
-    dir
+var APP = "demo"
+
+env GREETING = "hello"
+
+task hello --desc "打招呼" --on [windows, linux, macos] {
+  echo $GREETING from $OS/$ARCH app=$APP args=$ARGS
 }
 
-@linux {
-    echo "Hello Linux!"
-    ls -la
+task build --desc "构建示例" --deps [hello] --on [windows/amd64, linux, macos] {
+  echo building $APP on $OS/$ARCH
 }
 
-@macos {
-    echo "Hello macOS!"
-    ls -lG
+task win-only --desc "仅 Windows" --on [windows] {
+  echo windows-only $APP
 }
 
-@unix {
-    echo "Hello Unix!"
-    uname -a
-}
-
-@default {
-    echo "Hello!"
-}
-
-@windows/64 {
-    echo "Windows 64-bit"
-}
-@windows/32 {
-    echo "Windows 32-bit"
+task unix-only --desc "仅 Unix" --on [unix] {
+  echo unix-only $APP
 }

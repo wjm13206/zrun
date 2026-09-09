@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 	"zrun/src/executor"
 	"zrun/src/parser"
@@ -10,56 +12,129 @@ import (
 )
 
 const version = "2026.05.28"
-const SyntaxVersion = "1.2"
+const SyntaxVersion = "2.0"
 
-// 是否启用测量
-var enablePerfMeasurement = true
-
-// 解析命令行参数，加载并解析脚本文件，然后执行
 func main() {
-	// 检查参数
-	if len(os.Args) < 2 {
-		fmt.Println("用法: ./zrun <文件.zr>")
+	// 切分 -- 后的透传参数为 $ARGS
+	rawArgs := os.Args[1:]
+	var passThrough string
+	if i := indexOf(rawArgs, "--"); i >= 0 {
+		passThrough = strings.Join(rawArgs[i+1:], " ")
+		rawArgs = rawArgs[:i]
+	}
+
+	fs := flag.NewFlagSet("zrun", flag.ContinueOnError)
+	showList := fs.Bool("list", false, "列出任务")
+	dryRun := fs.Bool("dry-run", false, "只打印不执行")
+	showTime := fs.Bool("time", true, "显示总耗时")
+	shortV := fs.Bool("v", false, "显示版本")
+	longV := fs.Bool("version", false, "显示版本")
+	shortU := fs.Bool("u", false, "检查更新")
+	longU := fs.Bool("update", false, "检查更新")
+	showHelp := fs.Bool("h", false, "显示帮助")
+	longHelp := fs.Bool("help", false, "显示帮助")
+	// 兼容 --no-time 写法
+	noTime := fs.Bool("no-time", false, "不显示总耗时")
+	_ = fs.Parse(rawArgs)
+
+	if *showHelp || *longHelp {
+		printUsage()
+		return
+	}
+	if *shortV || *longV {
+		fmt.Printf("zrun version: %s (syntax %s)\n", version, SyntaxVersion)
+		return
+	}
+	if *shortU || *longU {
+		utils.CheckSyntaxUpdates(version, SyntaxVersion)
+		return
+	}
+
+	pos := fs.Args()
+	if len(pos) < 1 {
+		printUsage()
 		os.Exit(1)
 	}
-
-	// 检查版本参数
-	if os.Args[1] == "-v" || os.Args[1] == "--version" {
-		fmt.Printf("zrun version: %s\n", version)
-		os.Exit(0)
+	filename := pos[0]
+	tasks := pos[1:]
+	if *noTime {
+		*showTime = false
 	}
 
-	// 检查语法版本更新参数
-	if os.Args[1] == "-u" || os.Args[1] == "--update" {
-		utils.CheckSyntaxUpdates(version, SyntaxVersion)
-		os.Exit(0)
+	if *showList {
+		script, err := parser.ParseScript(filename)
+		if err != nil {
+			fmt.Printf("解析错误: %v\n", err)
+			os.Exit(1)
+		}
+		for _, t := range script.Tasks {
+			on := strings.Join(t.On, ",")
+			if on == "" {
+				on = "all"
+			}
+			deps := strings.Join(t.Deps, ",")
+			if deps == "" {
+				deps = "-"
+			}
+			fmt.Printf("%-16s on=[%s] deps=[%s] %s\n", t.Name, on, deps, t.Desc)
+		}
+		return
 	}
 
-	filename := os.Args[1]
-
-	// 记录开始时间
 	var start time.Time
-	if enablePerfMeasurement {
+	if *showTime {
 		start = time.Now()
 	}
 
-	// 解析
 	script, err := parser.ParseScript(filename)
 	if err != nil {
 		fmt.Printf("解析错误: %v\n", err)
 		os.Exit(1)
 	}
 
-	// 并发执行
-	err = executor.ExecuteScriptConcurrent(script)
+	err = executor.ExecuteScript(script, executor.Options{
+		Tasks:  tasks,
+		Args:   passThrough,
+		DryRun: *dryRun,
+	})
 	if err != nil {
 		fmt.Printf("执行错误: %v\n", err)
 		os.Exit(1)
 	}
 
-	// 输出执行时间
-	if enablePerfMeasurement {
-		elapsed := time.Since(start)
-		fmt.Printf("\n执行完成，总耗时: %v\n", elapsed)
+	if *showTime {
+		fmt.Printf("\n执行完成，总耗时: %v\n", time.Since(start))
 	}
+}
+
+func indexOf(args []string, target string) int {
+	for i, a := range args {
+		if a == target {
+			return i
+		}
+	}
+	return -1
+}
+
+func printUsage() {
+	fmt.Printf(`zrun %s (syntax %s) - 跨平台任务脚本
+
+用法:
+  zrun [选项] <文件.zr> [任务...] [-- 透传参数]
+
+选项:
+  --list            列出任务
+  --dry-run         只打印不执行
+  --time / --no-time 是否显示总耗时（默认显示）
+  -v, --version     显示版本
+  -u, --update      检查更新
+  -h, --help        显示帮助
+
+示例:
+  zrun script.zr
+  zrun script.zr build
+  zrun --list script.zr
+  zrun --dry-run script.zr build
+  zrun script.zr run -- --port 8080
+`, version, SyntaxVersion)
 }

@@ -2,6 +2,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,10 +23,20 @@ type RemoteVersionInfo struct {
 	DownloadURL         string `json:"download_url"`
 }
 
-// 获取版本信息
+// 获取版本信息，带超时，可单测。
 func fetchRemoteVersionInfo(url string) (*RemoteVersionInfo, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(url)
+	return fetchRemoteVersionInfoWithContext(context.Background(), url)
+}
+
+func fetchRemoteVersionInfoWithContext(ctx context.Context, url string) (*RemoteVersionInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -41,31 +52,40 @@ func fetchRemoteVersionInfo(url string) (*RemoteVersionInfo, error) {
 	}
 
 	var versionInfo RemoteVersionInfo
-	err = json.Unmarshal(body, &versionInfo)
-	if err != nil {
+	if err := json.Unmarshal(body, &versionInfo); err != nil {
 		return nil, err
 	}
-
 	return &versionInfo, nil
+}
+
+
+// 返回：是否有更新、语法是否不兼容。
+func CheckUpdate(currentVersion, syntaxVersion string, remote *RemoteVersionInfo) (hasUpdate bool, incompatible bool) {
+	if remote == nil {
+		return false, false
+	}
+	hasUpdate = currentVersion < remote.LatestVersion
+	incompatible = syntaxVersion != remote.LatestSyntaxVersion
+	return hasUpdate, incompatible
 }
 
 // 检查版本更新
 func CheckSyntaxUpdates(currentVersion string, syntaxVersion string) {
-
 	remoteInfo, err := fetchRemoteVersionInfo(UpdateURL)
 	if err != nil {
 		fmt.Printf("无法获取远程版本信息: %v\n", err)
 		return
 	}
 
-	if currentVersion == remoteInfo.LatestVersion {
+	hasUpdate, incompatible := CheckUpdate(currentVersion, syntaxVersion, remoteInfo)
+	if !hasUpdate {
 		fmt.Println("当前已是最新版本")
 		return
 	}
 
 	fmt.Printf("发现新版本: %s\n", remoteInfo.LatestVersion)
 
-	if syntaxVersion != remoteInfo.LatestSyntaxVersion {
+	if incompatible {
 		fmt.Println(versionIncompatibleWarning)
 	}
 

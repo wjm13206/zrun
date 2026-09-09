@@ -1,113 +1,79 @@
-# zrun - 跨平台脚本语言
+# zrun - 跨平台任务脚本
 
-zrun 是一个简单的跨平台脚本语言。
 
-[![go](https://img.shields.io/badge/Go-1.16+-blue)](https://go.dev/)
+[![go](https://img.shields.io/badge/Go-1.21+-blue)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-
 
 ## 特性
 
-- 自动检测操作系统类型 (Windows/Linux/macOS)
-- 根据操作系统执行对应的命令块
-- 支持默认命令块 (`@default`)
-- 支持Unix通用平台 (`@unix` 适用于Linux和macOS)
-- 支持命令回显控制 (`@echo on`/`@echo off`)
-- 支持根据操作系统+架构执行对应的命令块
-
-## 为什么会制作项目？
-
-1.闲
-
-2.制作懒人包
+- 以 `task` 为执行单元，默认顺序执行、遇错即停
+- `--on` 按平台过滤（`windows/linux/macos/unix` + `amd64/386/arm/arm64`，`64` 是 `amd64` 别名）
+- `--deps` 声明依赖，自动拓扑排序并检出成环
+- `var/env` + `$VAR/${VAR}` 插值，内置 `$OS/$ARCH/$ARGS`
+- 回显按任务作用域控制（`--echo on/off`，默认继承全局 `@echo`）
+- `env/workdir/shell` 按任务配置，`--dry-run/--list` 便于预览
 
 ## 安装
 
-确保你已经安装了 Go 环境，要求 Go 1.16+，但推荐使用 Go 1.21+ 以获得更好的兼容性和性能。
+要求 Go 1.21+。
 
 ```bash
-# 克隆仓库
 git clone https://github.com/wjm13206/zrun.git
 cd zrun
-# 构建
-go build -o zrun main.go
-```
-
-或
-
-```bash
 go build -o zrun .
 ```
 
 ## 使用方法
 
-创建一个 `.zr` 扩展名的脚本文件：
+```bash
+zrun script.zr                # 按文件顺序运行全部可执行任务
+zrun script.zr build          # 只运行 build 及其依赖
+zrun --list script.zr         # 列出任务
+zrun --dry-run script.zr build
+zrun script.zr run -- --port 8080   # -- 后面的内容进 $ARGS
+```
+
+## 语法规则（v2，不兼容 v1）
 
 ```zr
-@echo off
+@syntax 2.0
+@echo on
 
-@windows {
-    echo "Hello Windows!"
-    dir
+var APP = "demo"
+env GREETING = "hello"
+
+task hello --desc "打招呼" --on [windows, linux, macos] {
+  echo $GREETING from $OS/$ARCH app=$APP args=$ARGS
 }
 
-@linux {
-    echo "Hello Linux!"
-    ls -la
-}
-
-@macos {
-    echo "Hello macOS!"
-    ls -lG
-}
-
-@unix {
-    echo "Hello Unix"
-    uname -a
-}
-
-@default {
-    echo "Hello!"
+task build --desc "构建" --deps [hello] --on [linux, windows/amd64] --workdir ./ --echo on {
+  go build -o dist/$APP .
 }
 ```
 
-执行脚本：
-
-```bash
-./zrun script.zr
-```
-
-## 语法规则
-
-1. 使用 `@平台 { }` 来定义平台特定的命令块
-2. 支持的平台标识符：
-   - `@windows` - Windows系统
-   - `@linux` - Linux系统
-   - `@macos` - macOS系统
-   - `@unix` - Unix类系统 (包括Linux和macOS)
-   - `@default` - 默认块
-3. 在大括号内编写需要执行的系统命令，每行一个命令
-4. 使用 `@echo off` 禁止回显（默认是on，即显示命令）
-5. 使用 `@echo on` 重新开启命令回显
+1. 文件必须以 `@syntax 2.x` 开头；`v1` 的 `@windows { }` 等写法已废弃，会直接报错。
+2. 顶层只允许 `@syntax/@echo/var/env/task`；任务外出现命令直接报错并带行号。
+3. `task 名称 --选项 { ... }`，选项仅允许 `--desc/--on/--deps/--shell/--workdir/--echo`。
+4. `--on` 为空表示全平台；`unix` 指 `linux/macos`；`default/any/*` 恒真；大小写不敏感。
+5. 注释只认整行 `#` 或 `//`，避免误伤命令里的 `#`。
+6. 变量用 `$NAME/${NAME}`，`$$` 转义为 `$`；查找顺序 `var > env > $OS/$ARCH/$ARGS > 系统环境变量`。
 
 ## 项目结构
 
 ```
 zrun/
-├── main.go                 # 程序入口
-├── go.mod                  # Go模块文件
-└── src/                    # 内部
-    ├── types/              # 类型定义
-    ├── parser/             # 脚本解析器
-    ├── executor/           # 命令执行器
-    └── utils/              # 工具函数
+├── main.go                 # 程序入口（CLI）
+├── go.mod                  # Go模块文件（go 1.21+）
+└── src/
+    ├── types/              # v2 类型定义
+    ├── parser/             # v2 解析器
+    ├── executor/           # 顺序执行器
+    └── utils/              # 平台归一化/插值/更新检查
 ```
-
 
 ## 工作原理
 
-zrun 会：
-1. 解析 `.zr` 脚本文件
-2. 检测当前运行的操作系统
-3. 按顺序执行所有匹配当前操作系统的命令块，和`@default` 块
-
+1. 解析 `.zr` 脚本（带行号报错）
+2. 按请求任务展开依赖并拓扑排序，检出成环
+3. 跳过 `--on` 不匹配的任务
+4. 顺序执行，命令先插值再交给 `cmd /C` 或 `sh -c`
