@@ -8,7 +8,6 @@ import (
 	"zrun/src/types"
 )
 
-
 func ParseScript(filename string) (*types.ZRunScript, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -41,7 +40,7 @@ func ParseScript(filename string) (*types.ZRunScript, error) {
 	}
 
 	taskIndex := make(map[string]int) // 任务名 -> 下标，用于判重
-	curIdx := -1 // -1 表示当前不在 task 块内
+	curIdx := -1                      // -1 表示当前不在 task 块内
 	seenSyntax := false
 	firstMeaningfulSeen := false
 

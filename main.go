@@ -9,10 +9,8 @@ import (
 	"zrun/src/executor"
 	"zrun/src/parser"
 	"zrun/src/utils"
+	appversion "zrun/src/version"
 )
-
-const version = "2026.05.28"
-const SyntaxVersion = "2.0"
 
 func main() {
 	// 切分 -- 后的透传参数为 $ARGS
@@ -42,11 +40,11 @@ func main() {
 		return
 	}
 	if *shortV || *longV {
-		fmt.Printf("zrun version: %s (syntax %s)\n", version, SyntaxVersion)
+		fmt.Printf("zrun version: %s (syntax %s)\n", appversion.Version, appversion.SyntaxVersion)
 		return
 	}
 	if *shortU || *longU {
-		utils.CheckSyntaxUpdates(version, SyntaxVersion)
+		utils.CheckSyntaxUpdates(appversion.Version, appversion.SyntaxVersion)
 		return
 	}
 
@@ -136,5 +134,5 @@ func printUsage() {
   zrun --list script.zr
   zrun --dry-run script.zr build
   zrun script.zr run -- --port 8080
-`, version, SyntaxVersion)
+`, appversion.Version, appversion.SyntaxVersion)
 }

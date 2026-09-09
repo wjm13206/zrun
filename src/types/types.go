@@ -6,7 +6,6 @@ type TaskCommand struct {
 	Line int    `json:"line"`
 }
 
-
 type Task struct {
 	Name     string        `json:"name"`
 	Desc     string        `json:"desc,omitempty"`

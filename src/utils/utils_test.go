@@ -86,12 +86,21 @@ func TestExpandVars(t *testing.T) {
 }
 
 func TestCheckUpdate(t *testing.T) {
-	has, _ := CheckUpdate("2026.05.28", "2.0", &RemoteVersionInfo{LatestVersion: "2026.05.28", LatestSyntaxVersion: "2.0"})
+	has, _ := CheckUpdate("26.1.0", "2.0", &RemoteVersionInfo{LatestVersion: "26.1.0", LatestSyntaxVersion: "2.0"})
 	if has {
 		t.Error("同版本不应提示更新")
 	}
-	has, inc := CheckUpdate("2026.05.27", "1.2", &RemoteVersionInfo{LatestVersion: "2026.05.28", LatestSyntaxVersion: "2.0"})
+	has, inc := CheckUpdate("26.1.0", "1.2", &RemoteVersionInfo{LatestVersion: "26.2.0", LatestSyntaxVersion: "2.0"})
 	if !has || !inc {
 		t.Error("旧版本应提示更新且语法不兼容")
+	}
+	// 数字逐段比较：26.10.0 > 26.9.9，字符串比较会误判
+	has, _ = CheckUpdate("26.10.0", "2.0", &RemoteVersionInfo{LatestVersion: "26.9.9", LatestSyntaxVersion: "2.0"})
+	if has {
+		t.Error("26.10.0 不应比 26.9.9 旧")
+	}
+	has, _ = CheckUpdate("26.9.9", "2.0", &RemoteVersionInfo{LatestVersion: "26.10.0", LatestSyntaxVersion: "2.0"})
+	if !has {
+		t.Error("26.9.9 应比 26.10.0 旧")
 	}
 }

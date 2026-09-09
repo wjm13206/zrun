@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"zrun/src/version"
 )
 
 // URL
@@ -58,13 +59,13 @@ func fetchRemoteVersionInfoWithContext(ctx context.Context, url string) (*Remote
 	return &versionInfo, nil
 }
 
-
 // 返回：是否有更新、语法是否不兼容。
+// 应用版本按 YY.大版本.小版本逐段数字比较，避免字符串比较误判（如 26.10.0 < 26.9.0）。
 func CheckUpdate(currentVersion, syntaxVersion string, remote *RemoteVersionInfo) (hasUpdate bool, incompatible bool) {
 	if remote == nil {
 		return false, false
 	}
-	hasUpdate = currentVersion < remote.LatestVersion
+	hasUpdate = version.CompareStrings(currentVersion, remote.LatestVersion) < 0
 	incompatible = syntaxVersion != remote.LatestSyntaxVersion
 	return hasUpdate, incompatible
 }

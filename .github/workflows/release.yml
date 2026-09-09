@@ -1,8 +1,17 @@
 name: Release zrun
 
 on:
-  # 仅允许手动触发
+  # 仅允许手动触发，版本号格式为 YY.大版本.小版本，例如 26.3.1
   workflow_dispatch:
+    inputs:
+      bump:
+        description: '递增类型（minor: 26.3.1 -> 26.3.2，major: 26.3.1 -> 26.4.0）'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+          - minor
+          - major
 
 jobs:
   release:
@@ -23,31 +32,49 @@ jobs:
       - name: Get version info
         id: get_version
         run: |
-          # 获取今天的日期作为版本号
-          DATE_VERSION=$(date +%Y.%m.%d)
-          echo "DATE_VERSION=$DATE_VERSION" >> $GITHUB_ENV
-          echo "date_version=$DATE_VERSION" >> $GITHUB_OUTPUT
-          
-          # 从 main.go 提取 SyntaxVersion
-          SYNTAX_VERSION=$(grep "const SyntaxVersion" main.go | cut -d '"' -f 2)
+          # 版本格式：YY.大版本.小版本，例如 26.3.1
+          # 规则：取最新 vX.Y.Z 标签；同一年按 bump 递增，跨年则重置为 YY.1.0
+          BUMP="${{ inputs.bump }}"
+          YY_CUR=$(date +%y)
+          LAST_VER=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//' | sort -V | tail -n 1)
+          echo "Last version: ${LAST_VER:-<none>}, bump: $BUMP, year: $YY_CUR"
+          if [ -z "$LAST_VER" ]; then
+            NEW_VERSION="$YY_CUR.1.0"
+          else
+            LAST_YY=$(echo "$LAST_VER" | cut -d. -f1)
+            LAST_MAJOR=$(echo "$LAST_VER" | cut -d. -f2)
+            LAST_MINOR=$(echo "$LAST_VER" | cut -d. -f3)
+            if [ "$LAST_YY" != "$YY_CUR" ]; then
+              NEW_VERSION="$YY_CUR.1.0"
+            elif [ "$BUMP" = "major" ]; then
+              NEW_VERSION="$YY_CUR.$((LAST_MAJOR + 1)).0"
+            else
+              NEW_VERSION="$YY_CUR.$LAST_MAJOR.$((LAST_MINOR + 1))"
+            fi
+          fi
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+          # 从 src/version/version.go 提取 SyntaxVersion
+          SYNTAX_VERSION=$(grep "SyntaxVersion =" src/version/version.go | cut -d '"' -f 2)
           echo "SYNTAX_VERSION=$SYNTAX_VERSION" >> $GITHUB_ENV
           echo "syntax_version=$SYNTAX_VERSION" >> $GITHUB_OUTPUT
-          
-          echo "Version: $DATE_VERSION, Syntax Version: $SYNTAX_VERSION"
+
+          echo "Version: $NEW_VERSION, Syntax Version: $SYNTAX_VERSION"
 
       - name: Update versions in files
         run: |
-          DATE_VERSION=$DATE_VERSION
+          NEW_VERSION=$NEW_VERSION
           SYNTAX_VERSION=$SYNTAX_VERSION
-          # 更新 main.go 中的版本
-          sed -i "s/const version = \".*\"/const version = \"$DATE_VERSION\"/" main.go
+          # 更新 src/version/version.go 中的版本（版本唯一来源）
+          sed -i "s/const Version = \".*\"/const Version = \"$NEW_VERSION\"/" src/version/version.go
           # 更新 version.json 中的版本
-          sed -i "s/\"version\": \".*\"/\"version\": \"$DATE_VERSION\"/" version.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" version.json
           sed -i "s/\"syntax_version\": \".*\"/\"syntax_version\": \"$SYNTAX_VERSION\"/" version.json
 
           # 显示更改
-          echo "Updated main.go:"
-          grep "const version" main.go
+          echo "Updated src/version/version.go:"
+          grep "const Version" src/version/version.go
           echo "Updated version.json:"
           cat version.json
 
@@ -55,15 +82,20 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com" >&2
           git config --local user.name "github-actions[bot]" >&2
-          git add main.go version.json
+          git add src/version/version.go version.json
 
           # 检查是否有更改，如果有则提交
           if [[ -n "$(git status --porcelain)" ]]; then
-            git commit -m "Update to version $DATE_VERSION"
+            git commit -m "Update to version $NEW_VERSION"
             git push
           else
             echo "No changes to commit"
           fi
+
+      - name: Vet and test
+        run: |
+          go vet ./...
+          go test ./...
 
       - name: Build for all platforms
         run: |
@@ -155,8 +187,8 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ env.DATE_VERSION }}
-          name: Release v${{ env.DATE_VERSION }}
+          tag_name: v${{ env.NEW_VERSION }}
+          name: Release v${{ env.NEW_VERSION }}
           body: ${{ env.RELEASE_NOTES }}
           draft: false
           prerelease: false
